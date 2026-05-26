@@ -1,6 +1,6 @@
 """Trading Research Agent — Anthropic tool-use loop with retry + context management."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 import argparse
 import json
@@ -13,9 +13,17 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from config import (
+    CONTEXT_TOKEN_LIMIT,
+    MAX_ITERATIONS,
+    MAX_OUTPUT_TOKENS,
+    MAX_RETRIES,
+    MODEL,
+)
 from prompts.system import SYSTEM_PROMPT
 from tools.calculator import calculate
 from tools.earnings import get_earnings_data
+from tools.macro import get_macro
 from tools.options import get_options_data
 from tools.search import duckduckgo_search
 from tools.technicals import get_technicals
@@ -25,13 +33,6 @@ load_dotenv()
 logging.basicConfig(level=logging.WARNING, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 console = Console()
-
-client = anthropic.Anthropic()
-MODEL = "claude-opus-4-7"
-MAX_OUTPUT_TOKENS = 4096
-MAX_RETRIES = 3
-MAX_ITERATIONS = 12
-CONTEXT_TOKEN_LIMIT = 150_000
 
 TOOLS = [
     {
@@ -129,6 +130,19 @@ TOOLS = [
             "required": ["expression", "description"],
         },
     },
+    {
+        "name": "get_macro",
+        "description": (
+            "Fetch macro market context: VIX (fear gauge), 10-year Treasury yield, "
+            "and SPY trend (SMA50/200). Call this first to understand the market regime "
+            "before forming a single-stock thesis."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
 ]
 
 
@@ -155,6 +169,8 @@ def _dispatch_tool(name: str, tool_input: dict) -> object:
             expression=tool_input["expression"],
             description=tool_input.get("description", ""),
         )
+    if name == "get_macro":
+        return get_macro()
     return {"error": f"Unknown tool: {name}"}
 
 
@@ -256,6 +272,16 @@ def main() -> None:
     parser.add_argument("--json", action="store_true", help="Output JSON instead of rendered markdown")
     parser.add_argument("--version", action="version", version=f"trading-agent {__version__}")
     args = parser.parse_args()
+
+    # Input validation
+    ticker_raw = args.ticker.strip()
+    if not ticker_raw:
+        parser.error("Ticker cannot be empty.")
+    if ticker_raw.isdigit():
+        parser.error(f"Invalid ticker '{ticker_raw}': must contain letters, not digits only.")
+    if len(ticker_raw) > 6:
+        parser.error(f"Invalid ticker '{ticker_raw}': tickers are at most 6 characters.")
+    args.ticker = ticker_raw.upper()
 
     if args.no_cache:
         from tools import cache as _cache
