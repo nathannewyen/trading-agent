@@ -1,0 +1,284 @@
+"""Trading Research Agent — Anthropic tool-use loop with retry + context management."""
+
+__version__ = "0.4.0"
+
+import argparse
+import json
+import logging
+import time
+
+import anthropic
+from dotenv import load_dotenv
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.progress import Progress, SpinnerColumn, TextColumn
+
+from prompts.system import SYSTEM_PROMPT
+from tools.calculator import calculate
+from tools.earnings import get_earnings_data
+from tools.options import get_options_data
+from tools.search import duckduckgo_search
+from tools.technicals import get_technicals
+
+load_dotenv()
+
+logging.basicConfig(level=logging.WARNING, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
+console = Console()
+
+client = anthropic.Anthropic()
+MODEL = "claude-opus-4-7"
+MAX_OUTPUT_TOKENS = 4096
+MAX_RETRIES = 3
+MAX_ITERATIONS = 12
+CONTEXT_TOKEN_LIMIT = 150_000
+
+TOOLS = [
+    {
+        "name": "web_search",
+        "description": (
+            "Search the web for recent news about a stock or company. "
+            "Use for earnings results, analyst upgrades/downgrades, product launches, sector trends."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query, e.g. 'NVDA Q1 2025 earnings results'",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Number of results to return (1-10). Default 5.",
+                    "default": 5,
+                },
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "get_earnings",
+        "description": (
+            "Fetch earnings history, revenue, EPS, margins, valuation multiples, "
+            "analyst targets, insider transactions, and institutional holders via Yahoo Finance."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol, e.g. 'NVDA'"},
+                "quarters": {
+                    "type": "integer",
+                    "description": "Number of recent quarters to include (1-8). Default 4.",
+                    "default": 4,
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_technicals",
+        "description": (
+            "Compute technical indicators from price history: RSI(14), MACD(12,26,9), "
+            "SMA(50/200), EMA(20), golden/death cross, 52-week range, volume ratio."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol, e.g. 'NVDA'"},
+                "period": {
+                    "type": "string",
+                    "description": "History period: '3mo', '6mo', '1y', '2y'. Default '1y'.",
+                    "default": "1y",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "get_options",
+        "description": (
+            "Fetch options market data: put/call ratio, ATM implied volatility, "
+            "open interest. Useful for gauging market sentiment and hedging activity."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol, e.g. 'NVDA'"},
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "calculate",
+        "description": (
+            "Evaluate a mathematical expression for financial calculations: "
+            "growth rates, P/E ratios, margin changes, risk/reward ratios, etc."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "expression": {
+                    "type": "string",
+                    "description": "Math expression, e.g. '(125.4 - 98.2) / 98.2 * 100'",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "What this calculates, e.g. 'Revenue YoY growth %'",
+                },
+            },
+            "required": ["expression", "description"],
+        },
+    },
+]
+
+
+def _dispatch_tool(name: str, tool_input: dict) -> object:
+    if name == "web_search":
+        return duckduckgo_search(
+            query=tool_input["query"],
+            max_results=tool_input.get("max_results", 5),
+        )
+    if name == "get_earnings":
+        return get_earnings_data(
+            ticker=tool_input["ticker"],
+            quarters=tool_input.get("quarters", 4),
+        )
+    if name == "get_technicals":
+        return get_technicals(
+            ticker=tool_input["ticker"],
+            period=tool_input.get("period", "1y"),
+        )
+    if name == "get_options":
+        return get_options_data(ticker=tool_input["ticker"])
+    if name == "calculate":
+        return calculate(
+            expression=tool_input["expression"],
+            description=tool_input.get("description", ""),
+        )
+    return {"error": f"Unknown tool: {name}"}
+
+
+def _estimate_tokens(messages: list[dict]) -> int:
+    return sum(len(json.dumps(m)) for m in messages) // 4
+
+
+def _truncate_messages(messages: list[dict]) -> list[dict]:
+    """Drop oldest user+assistant pairs to stay under the context limit.
+    Always preserves the first user message (the original research request).
+    """
+    while len(messages) > 2 and _estimate_tokens(messages) > CONTEXT_TOKEN_LIMIT:
+        messages.pop(1)
+        if len(messages) > 1:
+            messages.pop(1)
+    return messages
+
+
+def _call_api(messages: list[dict]) -> anthropic.types.Message:
+    for attempt in range(MAX_RETRIES):
+        try:
+            return client.messages.create(
+                model=MODEL,
+                max_tokens=MAX_OUTPUT_TOKENS,
+                system=SYSTEM_PROMPT,
+                tools=TOOLS,
+                messages=messages,
+            )
+        except anthropic.RateLimitError:
+            wait = 5 * (2**attempt)
+            logger.warning(f"Rate limit — retrying in {wait}s (attempt {attempt + 1})")
+            time.sleep(wait)
+        except anthropic.APIStatusError as exc:
+            if attempt == MAX_RETRIES - 1:
+                raise
+            wait = 2**attempt
+            logger.warning(f"API error {exc.status_code} — retrying in {wait}s")
+            time.sleep(wait)
+    raise RuntimeError("Max retries exceeded")
+
+
+def run_agent(ticker: str, question: str | None = None) -> str:
+    """Run the research agent and return a completed trade thesis string."""
+    if question is None:
+        question = (
+            f"Research {ticker.upper()} and produce a complete trade thesis. "
+            "Fetch earnings data, technical indicators, options sentiment, and recent news. "
+            "Calculate key growth metrics. Write the full structured thesis."
+        )
+
+    messages: list[dict] = [{"role": "user", "content": question}]
+
+    for iteration in range(1, MAX_ITERATIONS + 1):
+        if _estimate_tokens(messages) > CONTEXT_TOKEN_LIMIT:
+            messages = _truncate_messages(messages)
+
+        response = _call_api(messages)
+        messages.append({"role": "assistant", "content": response.content})
+
+        if response.stop_reason == "end_turn":
+            for block in response.content:
+                if hasattr(block, "text"):
+                    return block.text
+            return "No thesis generated."
+
+        if response.stop_reason == "tool_use":
+            tool_results = []
+            for block in response.content:
+                if block.type == "tool_use":
+                    logger.info(f"Tool: {block.name}({json.dumps(block.input)[:100]})")
+                    result = _dispatch_tool(block.name, block.input)
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": json.dumps(result),
+                        }
+                    )
+            messages.append({"role": "user", "content": tool_results})
+        else:
+            break
+
+    logger.warning(f"Agent hit max iterations ({MAX_ITERATIONS})")
+    return "Research incomplete: max iterations reached."
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Trading Research Agent")
+    parser.add_argument("ticker", help="Stock ticker, e.g. NVDA")
+    parser.add_argument("--question", "-q", default=None, help="Custom research question")
+    parser.add_argument("--output", "-o", default=None, help="Save thesis to file")
+    parser.add_argument("--critique", action="store_true", help="Run two-agent critic after research")
+    parser.add_argument("--version", action="version", version=f"trading-agent {__version__}")
+    args = parser.parse_args()
+
+    with Progress(SpinnerColumn(), TextColumn(f"Researching {args.ticker.upper()}..."), console=console) as p:
+        p.add_task("", total=None)
+        thesis = run_agent(args.ticker, args.question)
+
+    console.print(f"\n[bold blue]{'='*60}[/bold blue]")
+    console.print(f"[bold cyan]TRADE THESIS: {args.ticker.upper()}[/bold cyan]")
+    console.print(f"[bold blue]{'='*60}[/bold blue]\n")
+    console.print(Markdown(thesis))
+
+    if args.critique:
+        from critic import run_full_analysis
+        with Progress(SpinnerColumn(), TextColumn("Running critic agent..."), console=console) as p:
+            p.add_task("", total=None)
+            result = run_full_analysis(args.ticker, thesis)
+
+        console.print(f"\n[bold yellow]{'='*60}[/bold yellow]")
+        console.print("[bold yellow]ANALYST CRITIQUE[/bold yellow]")
+        console.print(f"[bold yellow]{'='*60}[/bold yellow]\n")
+        console.print(Markdown(result["critique"]))
+
+        if args.output:
+            with open(args.output, "w") as fh:
+                fh.write(result["combined"])
+            console.print(f"\n[green]Full analysis saved to {args.output}[/green]")
+    elif args.output:
+        with open(args.output, "w") as fh:
+            fh.write(thesis)
+        console.print(f"\n[green]Thesis saved to {args.output}[/green]")
+
+
+if __name__ == "__main__":
+    main()
