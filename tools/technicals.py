@@ -19,12 +19,17 @@ def get_technicals(ticker: str, period: str = "1y") -> dict:
         volume = hist["Volume"]
         current = float(close.iloc[-1])
 
-        # RSI(14)
+        # RSI(14) — guard against zero avg_loss (sustained rally edge case)
         delta = close.diff()
         gain = delta.clip(lower=0).rolling(14).mean()
         loss = (-delta.clip(upper=0)).rolling(14).mean()
-        rs = gain / loss
-        rsi = float((100 - 100 / (1 + rs)).iloc[-1])
+        last_loss = float(loss.iloc[-1])
+        if last_loss == 0:
+            rsi = 100.0
+        else:
+            rs = gain / loss
+            rsi = float((100 - 100 / (1 + rs)).iloc[-1])
+        rsi = max(0.0, min(100.0, rsi))
 
         # MACD(12, 26, 9)
         ema12 = close.ewm(span=12, adjust=False).mean()
