@@ -68,6 +68,18 @@ def get_technicals(ticker: str, period: str = "1y") -> dict:
             else None
         )
 
+        # Average True Range (14-period) — measures volatility in price units
+        high = hist["High"]
+        low = hist["Low"]
+        prev_close = close.shift(1)
+        true_range = (
+            (high - low)
+            .combine((high - prev_close).abs(), max)
+            .combine((low - prev_close).abs(), max)
+        )
+        atr_14 = float(true_range.rolling(14).mean().iloc[-1]) if n >= 15 else None
+        atr_pct = round(atr_14 / current * 100, 2) if atr_14 and current else None
+
         # Volume spike: today's volume > 2x 30-day average
         avg_vol_30 = float(volume.rolling(30).mean().iloc[-1]) if n >= 30 else None
         today_vol = float(volume.iloc[-1])
@@ -100,6 +112,8 @@ def get_technicals(ticker: str, period: str = "1y") -> dict:
             "avg_volume_30d": int(avg_vol_30) if avg_vol_30 is not None else None,
             "volume_ratio": round(today_vol / avg_vol_30, 2) if avg_vol_30 else None,
             "volume_spike": volume_spike,
+            "atr_14": round(atr_14, 2) if atr_14 else None,
+            "atr_pct": atr_pct,
         }
 
     except Exception as exc:
