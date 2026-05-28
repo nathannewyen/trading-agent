@@ -3,6 +3,7 @@ import time
 
 from ddgs import DDGS
 from tools import cache
+from tools.sentiment import score_results
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ def duckduckgo_search(query: str, max_results: int = 5) -> list[dict]:
         try:
             with DDGS() as ddgs:
                 results = list(ddgs.text(query, max_results=max_results))
-            output = [
+            raw = [
                 {
                     "title": r.get("title", ""),
                     "url": r.get("href", ""),
@@ -26,6 +27,7 @@ def duckduckgo_search(query: str, max_results: int = 5) -> list[dict]:
                 }
                 for r in results
             ]
+            output = score_results(raw)
             cache.set("search", output, query=query, max_results=max_results)
             return output
         except Exception as exc:
