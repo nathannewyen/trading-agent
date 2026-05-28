@@ -3,7 +3,7 @@ import time
 
 from ddgs import DDGS
 from tools import cache
-from tools.sentiment import score_results
+from tools.sentiment import aggregate_sentiment, score_headline, score_results
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,14 @@ def duckduckgo_search(query: str, max_results: int = 5) -> list[dict]:
                 }
                 for r in results
             ]
-            output = score_results(raw)
+            # Score each result individually for per-headline sentiment
+            scored = score_results(raw)
+
+            # Append an aggregate summary as the final element so the agent
+            # can quickly read overall news tone without iterating all results.
+            summary = aggregate_sentiment(scored)
+            output = scored + [{"_type": "sentiment_aggregate", **summary}]
+
             cache.set("search", output, query=query, max_results=max_results)
             return output
         except Exception as exc:
