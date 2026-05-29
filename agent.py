@@ -247,12 +247,31 @@ def main() -> None:
     parser.add_argument("--question", "-q", default=None, help="Custom research question")
     parser.add_argument("--output", "-o", default=None, help="Save thesis to file")
     parser.add_argument("--critique", action="store_true", help="Run two-agent critic after research")
+    parser.add_argument("--no-cache", action="store_true", help="Bypass disk cache for fresh data")
+    parser.add_argument("--json", action="store_true", help="Output JSON instead of rendered markdown")
     parser.add_argument("--version", action="version", version=f"trading-agent {__version__}")
     args = parser.parse_args()
+
+    if args.no_cache:
+        from tools import cache as _cache
+        cleared = _cache.clear_all()
+        logger.info(f"Cache cleared ({cleared} entries)")
 
     with Progress(SpinnerColumn(), TextColumn(f"Researching {args.ticker.upper()}..."), console=console) as p:
         p.add_task("", total=None)
         thesis = run_agent(args.ticker, args.question)
+
+    if args.json:
+        import datetime
+        payload = json.dumps(
+            {"ticker": args.ticker.upper(), "date": str(datetime.date.today()), "thesis": thesis},
+            indent=2,
+        )
+        print(payload)
+        if args.output:
+            with open(args.output, "w") as fh:
+                fh.write(payload)
+        return
 
     console.print(f"\n[bold blue]{'='*60}[/bold blue]")
     console.print(f"[bold cyan]TRADE THESIS: {args.ticker.upper()}[/bold cyan]")
