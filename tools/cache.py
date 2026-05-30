@@ -3,11 +3,13 @@
 import hashlib
 import json
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any
 
-CACHE_DIR = Path(".cache")
+# Allow override via environment variable so CI and tests can redirect the cache
+CACHE_DIR = Path(os.environ.get("CACHE_DIR", ".cache"))
 DEFAULT_TTL = 3600  # 1 hour
 
 logger = logging.getLogger(__name__)
