@@ -52,6 +52,11 @@ def _extract_confidence(thesis: str) -> str:
     return m.group(1) if m else "—"
 
 
+def _extract_sector(thesis: str) -> str:
+    m = re.search(r"\*\*Sector:\*\*\s*([^|]+)", thesis)
+    return m.group(1).strip() if m else "—"
+
+
 def run_portfolio(tickers: list[str]) -> list[dict]:
     results = []
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
@@ -66,6 +71,7 @@ def run_portfolio(tickers: list[str]) -> list[dict]:
                     "score": _score_thesis(thesis),
                     "bias": _extract_bias(thesis),
                     "confidence": _extract_confidence(thesis),
+                    "sector": _extract_sector(thesis),
                 }
             )
 
@@ -76,6 +82,7 @@ def print_summary(results: list[dict]) -> None:
     table = Table(title="Portfolio Analysis", show_lines=True)
     table.add_column("Rank", style="bold", width=6)
     table.add_column("Ticker", style="cyan bold", width=8)
+    table.add_column("Sector", width=22)
     table.add_column("Bias", width=10)
     table.add_column("Confidence", width=12)
     table.add_column("Quality Score", width=14)
@@ -88,6 +95,7 @@ def print_summary(results: list[dict]) -> None:
         table.add_row(
             str(i),
             r["ticker"],
+            r.get("sector", "—"),
             f"[{color}]{bias}[/{color}]",
             r["confidence"],
             f"{r['score']:.3f}",
