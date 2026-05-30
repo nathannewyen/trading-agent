@@ -165,10 +165,21 @@ def main() -> None:
     parser.add_argument("--no-cache", action="store_true", help="Clear cache before running")
     parser.add_argument("--top-n", type=int, default=None, metavar="N", help="Show only top N results")
     parser.add_argument("--csv", default=None, metavar="FILE", help="Export ranked results to CSV")
+    parser.add_argument(
+        "--min-score", type=float, default=0.0, metavar="S",
+        help="Exclude theses below this quality score (0.0–1.0)"
+    )
     args = parser.parse_args()
 
     console.print(f"\n[bold]Researching {len(args.tickers)} ticker(s)...[/bold]\n")
     results = run_portfolio(args.tickers, no_cache=args.no_cache)
+
+    if args.min_score > 0:
+        before = len(results)
+        results = [r for r in results if r["score"] >= args.min_score]
+        dropped = before - len(results)
+        if dropped:
+            console.print(f"[dim]Filtered {dropped} ticker(s) below min-score {args.min_score}[/dim]\n")
 
     display_results = results[: args.top_n] if args.top_n else results
     print_summary(display_results)
