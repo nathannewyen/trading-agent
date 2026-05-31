@@ -61,12 +61,23 @@ def main() -> None:
         "--days", type=int, default=14, help="Lookahead window in days (default 14)"
     )
     parser.add_argument("--output", "-o", default=None, help="Save full report to file")
+    parser.add_argument(
+        "--exclude",
+        nargs="+",
+        metavar="TICKER",
+        default=[],
+        help="Skip these tickers even if they appear in the watchlist",
+    )
     args = parser.parse_args()
 
     # Resolve ticker list
     tickers = list(args.tickers)
     if args.watchlist_file:
         tickers += _load_tickers_from_file(args.watchlist_file)
+
+    if args.exclude:
+        excluded = {t.upper() for t in args.exclude}
+        tickers = [t for t in tickers if t.upper() not in excluded]
     if not tickers:
         parser.error("Provide at least one ticker or --watchlist-file.")
 
