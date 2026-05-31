@@ -67,9 +67,10 @@ def run_portfolio(tickers: list[str], no_cache: bool = False) -> list[dict]:
         _cache.clear_all()
 
     results = []
+    total = len(tickers)
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
-        for ticker in tickers:
-            task = progress.add_task(f"Researching {ticker}...", total=None)
+        for idx, ticker in enumerate(tickers, 1):
+            task = progress.add_task(f"[{idx}/{total}] Researching {ticker}...", total=None)
             thesis = run_agent(ticker)
             progress.remove_task(task)
             results.append(
