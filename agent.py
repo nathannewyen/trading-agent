@@ -227,6 +227,7 @@ def run_agent(ticker: str, question: str | None = None) -> str:
         )
 
     messages: list[dict] = [{"role": "user", "content": question}]
+    tool_call_counts: dict[str, int] = {}
 
     for iteration in range(1, MAX_ITERATIONS + 1):
         if _estimate_tokens(messages) > CONTEXT_TOKEN_LIMIT:
@@ -238,6 +239,8 @@ def run_agent(ticker: str, question: str | None = None) -> str:
         if response.stop_reason == "end_turn":
             for block in response.content:
                 if hasattr(block, "text"):
+                    if tool_call_counts:
+                        logger.info(f"Tool calls: {tool_call_counts}")
                     return block.text
             return "No thesis generated."
 
@@ -246,6 +249,7 @@ def run_agent(ticker: str, question: str | None = None) -> str:
             for block in response.content:
                 if block.type == "tool_use":
                     logger.info(f"Tool: {block.name}({json.dumps(block.input)[:100]})")
+                    tool_call_counts[block.name] = tool_call_counts.get(block.name, 0) + 1
                     result = _dispatch_tool(block.name, block.input)
                     tool_results.append(
                         {
