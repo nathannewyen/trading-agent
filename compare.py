@@ -3,6 +3,7 @@
 Usage:
   python compare.py NVDA AMD
   python compare.py AAPL MSFT --output comparison.md
+  python compare.py NVDA AMD --quick     # skip full thesis, compare on earnings data only
 """
 
 import argparse
@@ -16,50 +17,39 @@ from rich.markdown import Markdown
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from agent import run_agent
+from config import MODEL
+from prompts.compare import COMPARE_SYSTEM
+from tools.earnings import get_earnings_data
 
 load_dotenv()
 
 client = anthropic.Anthropic()
-MODEL = "claude-opus-4-7"
 console = Console()
 logger = logging.getLogger(__name__)
 
-COMPARE_SYSTEM = """You are a trading analyst comparing two stocks side-by-side.
 
-Given two completed trade theses, produce:
+def compare_stocks(ticker_a: str, ticker_b: str, quick: bool = False) -> dict:
+    """Research both tickers, then run a comparison agent.
 
-## Comparison: [TICKER_A] vs [TICKER_B]
-
-### Head-to-Head Metrics
-| Metric | [TICKER_A] | [TICKER_B] | Edge |
-|--------|-----------|-----------|------|
-| Valuation (P/E) | | | |
-| Revenue Growth | | | |
-| Profit Margin | | | |
-| Analyst Bias | | | |
-| Technical Setup | | | |
-
-### Relative Strengths
-**[TICKER_A] wins on:** [2-3 specific advantages]
-**[TICKER_B] wins on:** [2-3 specific advantages]
-
-### Verdict
-[Which is the stronger trade right now and why — 3-5 sentences grounded in the data above]
-
-**Preferred Trade:** [TICKER_A / TICKER_B]
-**Runner-up:** [other ticker — conditions under which it would win]
-"""
-
-
-def compare_stocks(ticker_a: str, ticker_b: str) -> dict:
-    """Research both tickers, then run a comparison agent."""
+    If `quick` is True, skip the full research pipeline and feed only the
+    earnings data snapshot directly to the comparison agent — much faster
+    for a ballpark side-by-side view.
+    """
     results = {}
 
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
-        for ticker in [ticker_a, ticker_b]:
-            task = progress.add_task(f"Researching {ticker}...", total=None)
-            results[ticker] = run_agent(ticker)
-            progress.remove_task(task)
+        if quick:
+            for ticker in [ticker_a, ticker_b]:
+                task = progress.add_task(f"Fetching earnings for {ticker}...", total=None)
+                import json
+                data = get_earnings_data(ticker)
+                results[ticker] = f"[Quick mode — earnings snapshot only]\n{json.dumps(data, indent=2)}"
+                progress.remove_task(task)
+        else:
+            for ticker in [ticker_a, ticker_b]:
+                task = progress.add_task(f"Researching {ticker}...", total=None)
+                results[ticker] = run_agent(ticker)
+                progress.remove_task(task)
 
         task = progress.add_task("Comparing...", total=None)
         response = client.messages.create(
@@ -94,9 +84,14 @@ def main() -> None:
     parser.add_argument("ticker_a", help="First ticker, e.g. NVDA")
     parser.add_argument("ticker_b", help="Second ticker, e.g. AMD")
     parser.add_argument("--output", "-o", default=None, help="Save report to file")
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Skip full thesis; compare using earnings snapshots only (faster)",
+    )
     args = parser.parse_args()
 
-    result = compare_stocks(args.ticker_a, args.ticker_b)
+    result = compare_stocks(args.ticker_a, args.ticker_b, quick=args.quick)
 
     console.print(f"\n[bold cyan]Comparison: {result['ticker_a']} vs {result['ticker_b']}[/bold cyan]\n")
     console.print(Markdown(result["comparison"]))
