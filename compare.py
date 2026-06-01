@@ -89,12 +89,22 @@ def main() -> None:
         action="store_true",
         help="Skip full thesis; compare using earnings snapshots only (faster)",
     )
+    parser.add_argument(
+        "--save-theses",
+        action="store_true",
+        help="Save each individual thesis to <TICKER>_thesis.md alongside the comparison output",
+    )
     args = parser.parse_args()
 
     result = compare_stocks(args.ticker_a, args.ticker_b, quick=args.quick)
 
     console.print(f"\n[bold cyan]Comparison: {result['ticker_a']} vs {result['ticker_b']}[/bold cyan]\n")
     console.print(Markdown(result["comparison"]))
+
+    if args.save_theses:
+        Path(f"{result['ticker_a'].lower()}_thesis.md").write_text(result["thesis_a"])
+        Path(f"{result['ticker_b'].lower()}_thesis.md").write_text(result["thesis_b"])
+        console.print(f"[dim]Theses saved to {result['ticker_a'].lower()}_thesis.md and {result['ticker_b'].lower()}_thesis.md[/dim]")
 
     if args.output:
         full = (
