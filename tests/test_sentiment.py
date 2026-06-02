@@ -49,3 +49,23 @@ def test_aggregate_sentiment_counts():
     out = aggregate_sentiment(results)
     assert out["bullish_count"] == 2
     assert out["bearish_count"] == 1
+
+
+def test_all_caps_text():
+    """ALL-CAPS headline should score the same as lowercase (word matching is case-insensitive)."""
+    lower_score = score_headline("apple beats earnings estimates with record revenue")
+    upper_score = score_headline("APPLE BEATS EARNINGS ESTIMATES WITH RECORD REVENUE")
+    assert lower_score == upper_score
+
+
+def test_empty_string():
+    """Empty string should return 0.0 without error."""
+    score = score_headline("")
+    assert score == 0.0
+
+
+def test_mixed_signals():
+    """Headline with both bullish and bearish words should return a score closer to 0."""
+    score = score_headline("company beats EPS but misses revenue and cuts guidance")
+    # Net signal is mixed — should be between -0.5 and 0.5
+    assert -0.5 < score < 0.5
