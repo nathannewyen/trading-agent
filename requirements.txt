@@ -4,3 +4,4 @@ ddgs>=0.1.0
 braintrust>=0.0.150
 python-dotenv>=1.0.0
 rich>=13.0.0
+pytest>=8.0.0
