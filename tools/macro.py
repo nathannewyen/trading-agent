@@ -31,10 +31,14 @@ def get_macro() -> dict:
         vix_data = yf.Ticker(_TICKERS["vix"]).history(period="5d")
         if not vix_data.empty:
             vix_val = round(float(vix_data["Close"].iloc[-1]), 2)
+            vix_5d_avg = round(float(vix_data["Close"].mean()), 2)
             result["vix"] = vix_val
+            result["vix_5d_avg"] = vix_5d_avg
+            result["vix_trending_up"] = bool(vix_val > vix_5d_avg * 1.05)
             result["vix_signal"] = (
                 "extreme_fear" if vix_val > 30
                 else "elevated_fear" if vix_val > 20
+                else "low_vol" if vix_val < 13
                 else "calm"
             )
         else:
