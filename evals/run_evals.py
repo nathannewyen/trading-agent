@@ -158,6 +158,11 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None, help="Run only the first N cases")
     parser.add_argument("--tag", default="v1", help="Label this eval run (e.g. v1, v2-prompt-fix)")
     parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="Stop after the first eval case that scores below 0.5 on any scorer",
+    )
+    parser.add_argument(
         "--summary",
         action="store_true",
         help="Print mean score per scorer after the run",
