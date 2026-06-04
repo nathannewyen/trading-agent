@@ -106,8 +106,15 @@ def has_recommendation(output: str, expected: dict, **_) -> dict:
 
 
 def risk_quality(output: str, expected: dict, **_) -> dict:
-    """Checks whether the Bear Case section has specific, data-backed risks."""
-    bear_match = re.search(r"## 5\. Bear Case(.*?)(?=## 6\.|$)", output, re.DOTALL)
+    """Checks whether the Bear Case section has specific, data-backed risks.
+
+    Handles both numbered headings (## 5. Bear Case) and bold headings (**Bear Case**).
+    """
+    bear_match = re.search(
+        r"(?:## 5\. Bear Case|\*\*Bear Case\*\*)(.*?)(?=## 6\.|\*\*Trade Recommendation\*\*|$)",
+        output,
+        re.DOTALL,
+    )
     if not bear_match:
         return {"score": 0.0, "metadata": {"bear_case_found": False}}
 
@@ -150,6 +157,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run Braintrust evals for trading-agent")
     parser.add_argument("--limit", type=int, default=None, help="Run only the first N cases")
     parser.add_argument("--tag", default="v1", help="Label this eval run (e.g. v1, v2-prompt-fix)")
+    parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="Print mean score per scorer after the run",
+    )
     args = parser.parse_args()
 
     with open(DATASET_PATH) as fh:
@@ -160,21 +172,39 @@ def main() -> None:
 
     print(f"Running {len(dataset)} eval case(s) — tag: {args.tag}\n")
 
+    scorers = [
+        thesis_coherence,
+        data_grounding,
+        has_recommendation,
+        risk_quality,
+        catalyst_recency,
+    ]
+
+    if args.summary:
+        # Run scorers offline against dataset expected outputs for a quick summary
+        from collections import defaultdict
+        totals: dict[str, list[float]] = defaultdict(list)
+        for case in dataset:
+            # Use expected output as a proxy (useful for testing scorers, not the agent)
+            output = case.get("expected", {}).get("thesis", "") if isinstance(case.get("expected"), dict) else ""
+            for scorer in scorers:
+                r = scorer(output, case.get("expected", {}))
+                totals[scorer.__name__].append(r.get("score", 0.0))
+        print("\nScorer summary (mean scores across dataset):")
+        for name, scores in totals.items():
+            mean = sum(scores) / len(scores) if scores else 0.0
+            print(f"  {name:<25} {mean:.3f}")
+        print()
+
     braintrust.Eval(
         name="trading-research-agent",
         data=dataset,
         task=run_task,
-        scores=[
-            thesis_coherence,
-            data_grounding,
-            has_recommendation,
-            risk_quality,
-            catalyst_recency,
-        ],
+        scores=scorers,
         metadata={
             "model": "claude-opus-4-7",
             "version": args.tag,
-            "tools": ["web_search", "get_earnings", "get_technicals", "get_options", "calculate"],
+            "tools": ["web_search", "get_earnings", "get_technicals", "get_options", "calculate", "get_macro"],
             "dataset_size": len(dataset),
         },
     )
