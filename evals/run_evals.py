@@ -32,6 +32,7 @@ DATASET_PATH = Path(__file__).parent / "dataset.json"
 REQUIRED_SECTIONS = [
     "Company Snapshot",
     "Earnings Analysis",
+    "Technical Setup",
     "Recent Catalysts",
     "Bull Case",
     "Bear Case",
