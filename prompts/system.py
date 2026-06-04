@@ -49,7 +49,8 @@ SYSTEM_PROMPT = """You are a quantitative trading research analyst. Your job is 
 | ATM IV | X% | high/normal/low |
 
 ## 3. Recent Catalysts
-- [Bullet: specific news item with approximate date]
+**News Sentiment:** X/N articles bullish | Y/N bearish (from search result sentiment scores)
+- [Bullet: specific news item with approximate date — note sentiment_label if strongly bullish/bearish]
 - [Continue for all relevant items found]
 
 ## 4. Bull Case
