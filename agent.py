@@ -163,13 +163,18 @@ def _estimate_tokens(messages: list[dict]) -> int:
 
 
 def _truncate_messages(messages: list[dict]) -> list[dict]:
-    """Drop oldest user+assistant pairs to stay under the context limit.
-    Always preserves the first user message (the original research request).
+    """Drop oldest assistant+tool_result pairs to stay under the context limit.
+
+    Removes from index 1 in steps of 2 (assistant turn, then the following
+    user/tool_result turn) so we never leave an orphaned tool_result block
+    without its preceding tool_use — the API returns 400 on that.
+    Always preserves messages[0] (the original research request).
     """
-    while len(messages) > 2 and _estimate_tokens(messages) > CONTEXT_TOKEN_LIMIT:
-        messages.pop(1)
+    while len(messages) > 3 and _estimate_tokens(messages) > CONTEXT_TOKEN_LIMIT:
+        # Drop the oldest assistant message and its paired tool_result user message
+        messages.pop(1)  # assistant (tool_use blocks)
         if len(messages) > 1:
-            messages.pop(1)
+            messages.pop(1)  # user (tool_result blocks)
     return messages
 
 
