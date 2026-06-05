@@ -1,11 +1,9 @@
 """Unit tests for watchlist.py — calendar integration and file reading."""
 
 import sys
-import tempfile
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -91,3 +89,21 @@ def test_watchlist_calendar_integration(monkeypatch):
     assert len(result) == 1
     assert result[0]["ticker"] == "NVDA"
     assert result[0]["days_until"] <= 14
+
+
+def test_load_tickers_strips_whitespace(tmp_path):
+    """Leading/trailing whitespace around ticker symbols should be stripped."""
+    f = tmp_path / "tickers.txt"
+    f.write_text("  NVDA  \n  AAPL\nMSFT  \n")
+    result = _load_tickers_from_file(str(f))
+    assert result == ["NVDA", "AAPL", "MSFT"]
+
+
+def test_days_color_boundary_exactly_7():
+    """Exactly 7 days should be red (urgent)."""
+    assert _days_color(7) == "red"
+
+
+def test_days_color_boundary_exactly_8():
+    """Exactly 8 days should be yellow (upcoming)."""
+    assert _days_color(8) == "yellow"
