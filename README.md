@@ -91,8 +91,18 @@ evals/
 ## Key implementation details
 
 - **Retry logic** — exponential backoff (5s, 10s, 20s) on rate limit and API errors
-- **Context window management** — estimates token count (~4 chars/token), drops oldest message pairs when approaching 150k tokens
-- **Disk cache** — MD5-keyed JSON files in `.cache/`, TTL 1h for earnings, 30min for search
-- **Multi-agent critic** — separate `client.messages.create` call with its own system prompt; no shared state with researcher
+- **Context window management** — estimates token count (~4 chars/token), drops oldest message pairs when approaching 150k tokens; always preserves the original user request
+- **Disk cache** — MD5-keyed JSON files in `.cache/`, TTL 1h for earnings, 30min for search; `cache.clear_all()` for invalidation
+- **Multi-agent critic** — separate `client.messages.create` call with its own system prompt and no tools; no shared state with researcher agent
 - **Safe calculator** — `eval()` with a restricted namespace (no builtins, only `math` functions)
-- **Portfolio scoring** — offline thesis quality score (coherence + data density + rec completeness) used to rank tickers without re-calling the API
+- **Portfolio scoring** — offline thesis quality score (coherence + data density + rec completeness) ranks tickers without extra API calls
+- **Watchlist mode** — earnings calendar filters to near-term catalysts, then research runs with an earnings-focused prompt variant
+
+## Prompt evolution
+
+| Version | Change | Eval delta |
+|---------|--------|------------|
+| v1 | Initial prompt | baseline |
+| v2 | Added technicals + options to research steps; expanded output format | +technical_setup section |
+
+Run `python evals/run_evals.py --tag v1` and `--tag v2` then compare in the Braintrust UI.
