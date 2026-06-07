@@ -61,7 +61,9 @@ def _extract_sector(thesis: str) -> str:
     return m.group(1).strip() if m else "—"
 
 
-def run_portfolio(tickers: list[str], no_cache: bool = False) -> list[dict]:
+def run_portfolio(tickers: list[str], no_cache: bool = False, delay: float = 0.0) -> list[dict]:
+    import time as _time
+
     if no_cache:
         from tools import cache as _cache
         _cache.clear_all()
@@ -70,6 +72,8 @@ def run_portfolio(tickers: list[str], no_cache: bool = False) -> list[dict]:
     total = len(tickers)
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
         for idx, ticker in enumerate(tickers, 1):
+            if delay > 0 and idx > 1:
+                _time.sleep(delay)
             task = progress.add_task(f"[{idx}/{total}] Researching {ticker}...", total=None)
             thesis = run_agent(ticker)
             progress.remove_task(task)
@@ -170,10 +174,14 @@ def main() -> None:
         "--min-score", type=float, default=0.0, metavar="S",
         help="Exclude theses below this quality score (0.0–1.0)"
     )
+    parser.add_argument(
+        "--delay", type=float, default=0.0, metavar="SEC",
+        help="Seconds to wait between tickers to avoid rate limits (default: 0)"
+    )
     args = parser.parse_args()
 
     console.print(f"\n[bold]Researching {len(args.tickers)} ticker(s)...[/bold]\n")
-    results = run_portfolio(args.tickers, no_cache=args.no_cache)
+    results = run_portfolio(args.tickers, no_cache=args.no_cache, delay=args.delay)
 
     if args.min_score > 0:
         before = len(results)
