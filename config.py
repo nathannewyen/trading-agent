@@ -20,3 +20,10 @@ CACHE_TTL_SEARCH = 1800         # 30 min — news is more time-sensitive
 CACHE_TTL_TECHNICALS = 900      # 15 min — prices update throughout the day
 CACHE_TTL_OPTIONS = 600         # 10 min — options data is fast-moving
 CACHE_TTL_CALENDAR = 7200       # 2 hours — earnings dates are stable
+
+# Network timeouts (seconds)
+SEARCH_TIMEOUT = 10
+HTTP_TIMEOUT = 15
+
+# Logging / output
+VERBOSE = False                 # override with --verbose CLI flag
