@@ -4,8 +4,11 @@ import time
 from ddgs import DDGS
 from tools import cache
 from tools.sentiment import aggregate_sentiment, score_headline, score_results
+from config import SEARCH_TIMEOUT
 
 logger = logging.getLogger(__name__)
+
+_EMPTY_RESULT = {"_type": "sentiment_aggregate", "score": 0.0, "label": "neutral", "count": 0}
 
 
 def duckduckgo_search(query: str, max_results: int = 5) -> list[dict]:
@@ -18,7 +21,11 @@ def duckduckgo_search(query: str, max_results: int = 5) -> list[dict]:
     for attempt in range(3):
         try:
             with DDGS() as ddgs:
-                results = list(ddgs.text(query, max_results=max_results, timeout=10))
+                results = list(ddgs.text(query, max_results=max_results, timeout=SEARCH_TIMEOUT))
+
+            if not results:
+                logger.warning(f"No search results for query: {query!r}")
+                return [_EMPTY_RESULT]
             raw = [
                 {
                     "title": r.get("title", ""),
