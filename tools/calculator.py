@@ -20,6 +20,24 @@ _SAFE_NAMESPACE = {
 }
 
 
+def format_currency(value: float, symbol: str = "$") -> str:
+    """Return a human-readable currency string, e.g. $1.23B or $456.7M."""
+    abs_val = abs(value)
+    if abs_val >= 1e12:
+        return f"{symbol}{value / 1e12:.2f}T"
+    if abs_val >= 1e9:
+        return f"{symbol}{value / 1e9:.2f}B"
+    if abs_val >= 1e6:
+        return f"{symbol}{value / 1e6:.2f}M"
+    return f"{symbol}{value:,.2f}"
+
+
+def format_pct(value: float, decimals: int = 2) -> str:
+    """Return a percentage string, e.g. '+12.34%'."""
+    sign = "+" if value >= 0 else ""
+    return f"{sign}{value:.{decimals}f}%"
+
+
 def calculate(expression: str, description: str = "") -> dict:
     try:
         result = eval(expression.strip(), _SAFE_NAMESPACE)  # noqa: S307
