@@ -275,7 +275,11 @@ def main() -> None:
     parser.add_argument("--no-cache", action="store_true", help="Bypass disk cache for fresh data")
     parser.add_argument("--json", action="store_true", help="Output JSON instead of rendered markdown")
     parser.add_argument("--version", action="version", version=f"trading-agent {__version__}")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Log every tool call to stderr")
     args = parser.parse_args()
+
+    if args.verbose:
+        logging.getLogger().setLevel(logging.INFO)
 
     # Input validation
     ticker_raw = args.ticker.strip()
