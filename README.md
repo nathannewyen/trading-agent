@@ -16,7 +16,10 @@ An agentic research pipeline built on the Anthropic API that fetches earnings da
 | **Portfolio mode** | Research + rank multiple tickers; `--top-n`, `--csv`, sector breakdown |
 | **Comparison mode** | Side-by-side analysis of two stocks with `--quick` flag for fast earnings-only view |
 | **Earnings calendar** | Upcoming earnings dates with beat/miss history, color-coded by days away |
-| **Watchlist mode** | `--watchlist-file` reads tickers from a text file; color-coded earnings dates |
+| **Watchlist mode** | `--watchlist-file` reads tickers from a text file; `--watch` for continuous refresh |
+| **Sector prompts** | `--sector tech/energy/financials/healthcare/consumer` for specialized analysis |
+| **News aggregation** | Multi-query deduplication across 3 search templates with per-article sentiment |
+| **Fundamentals tool** | Balance-sheet ratios: P/B, P/S, D/E, ROE, FCF yield via `tools/fundamentals.py` |
 | **Eval suite** | Braintrust eval with 5 custom scorers across 50 test cases; `--summary` flag for quick stats |
 | **CI** | GitHub Actions runs `pytest tests/` on every push and PR |
 | **Rich CLI** | Colored output, spinner progress, formatted markdown in terminal |
