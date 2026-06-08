@@ -217,6 +217,59 @@ def _call_api(messages: list[dict], system: str | None = None) -> anthropic.type
     raise RuntimeError("Max retries exceeded")
 
 
+def stream_agent(ticker: str, question: str | None = None, sector: str | None = None) -> None:
+    """Stream the final thesis text to stdout as it arrives from the API.
+
+    Unlike run_agent (which buffers the full response), this function prints
+    each text delta immediately using the Anthropic streaming API.  Tool-use
+    turns are handled silently; only the final synthesis is streamed.
+    """
+    from prompts.sector import get_sector_prompt
+    system = (get_sector_prompt(sector) if sector else None) or SYSTEM_PROMPT
+
+    if question is None:
+        question = (
+            f"Research {ticker.upper()} and produce a complete trade thesis. "
+            "Fetch earnings data, technical indicators, options sentiment, and recent news. "
+            "Calculate key growth metrics. Write the full structured thesis."
+        )
+
+    messages: list[dict] = [{"role": "user", "content": question}]
+
+    for _ in range(MAX_ITERATIONS):
+        if _estimate_tokens(messages) > CONTEXT_TOKEN_LIMIT:
+            messages = _truncate_messages(messages)
+
+        # Non-streaming pass for tool calls; stream only the final text turn
+        response = _call_api(messages, system=system)
+        messages.append({"role": "assistant", "content": response.content})
+
+        if response.stop_reason == "end_turn":
+            # Re-call with streaming enabled for the text output
+            with client.messages.stream(
+                model=MODEL,
+                max_tokens=MAX_OUTPUT_TOKENS,
+                system=system,
+                messages=messages[:-1],  # exclude the buffered assistant turn
+            ) as stream:
+                for text in stream.text_stream:
+                    print(text, end="", flush=True)
+            print()
+            return
+
+        if response.stop_reason == "tool_use":
+            tool_results = []
+            for block in response.content:
+                if block.type == "tool_use":
+                    result = _dispatch_tool(block.name, block.input)
+                    tool_results.append(
+                        {"type": "tool_result", "tool_use_id": block.id, "content": json.dumps(result)}
+                    )
+            messages.append({"role": "user", "content": tool_results})
+        else:
+            break
+
+
 def run_agent(ticker: str, question: str | None = None, sector: str | None = None) -> str:
     """Run the research agent and return a completed trade thesis string."""
     from prompts.sector import get_sector_prompt
@@ -280,6 +333,7 @@ def main() -> None:
     parser.add_argument("--version", action="version", version=f"trading-agent {__version__}")
     parser.add_argument("--verbose", "-v", action="store_true", help="Log every tool call to stderr")
     parser.add_argument("--sector", default=None, help="Sector lens: tech, energy, financials, healthcare, consumer")
+    parser.add_argument("--stream", action="store_true", help="Stream final thesis text to stdout as it is generated")
     args = parser.parse_args()
 
     if args.verbose:
@@ -299,6 +353,13 @@ def main() -> None:
         from tools import cache as _cache
         cleared = _cache.clear_all()
         logger.info(f"Cache cleared ({cleared} entries)")
+
+    if args.stream:
+        console.print(f"\n[bold blue]{'='*60}[/bold blue]")
+        console.print(f"[bold cyan]TRADE THESIS: {args.ticker.upper()} (streaming)[/bold cyan]")
+        console.print(f"[bold blue]{'='*60}[/bold blue]\n")
+        stream_agent(args.ticker, args.question, sector=args.sector)
+        return
 
     with Progress(SpinnerColumn(), TextColumn(f"Researching {args.ticker.upper()}..."), console=console) as p:
         p.add_task("", total=None)
