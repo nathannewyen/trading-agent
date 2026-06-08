@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import time
 from pathlib import Path
 
 from rich.console import Console
@@ -61,6 +62,18 @@ def main() -> None:
         "--days", type=int, default=14, help="Lookahead window in days (default 14)"
     )
     parser.add_argument("--output", "-o", default=None, help="Save full report to file")
+    parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="Continuously refresh every --interval minutes until interrupted",
+    )
+    parser.add_argument(
+        "--interval",
+        type=int,
+        default=60,
+        metavar="MIN",
+        help="Refresh interval in minutes when --watch is active (default 60)",
+    )
     parser.add_argument(
         "--exclude",
         nargs="+",
@@ -146,6 +159,25 @@ def main() -> None:
             )
         Path(args.output).write_text("".join(lines))
         console.print(f"[green]Report saved to {args.output}[/green]")
+
+    if args.watch:
+        console.print(f"\n[dim]--watch active: refreshing every {args.interval} min. Ctrl-C to stop.[/dim]")
+        try:
+            while True:
+                time.sleep(args.interval * 60)
+                console.print(f"\n[bold cyan]Refreshing watchlist...[/bold cyan]")
+                upcoming = get_earnings_calendar(tickers, days_ahead=args.days)
+                if upcoming:
+                    for row in upcoming:
+                        days = row["days_until"]
+                        color = _days_color(days)
+                        console.print(
+                            f"  [{color}]{row['ticker']}[/{color}] — earnings in {days} days"
+                        )
+                else:
+                    console.print("[yellow]No upcoming earnings in window.[/yellow]")
+        except KeyboardInterrupt:
+            console.print("\n[dim]Watch mode stopped.[/dim]")
 
 
 if __name__ == "__main__":
