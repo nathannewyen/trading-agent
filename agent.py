@@ -194,13 +194,13 @@ def _truncate_messages(messages: list[dict]) -> list[dict]:
     return messages
 
 
-def _call_api(messages: list[dict]) -> anthropic.types.Message:
+def _call_api(messages: list[dict], system: str | None = None) -> anthropic.types.Message:
     for attempt in range(MAX_RETRIES):
         try:
             return client.messages.create(
                 model=MODEL,
                 max_tokens=MAX_OUTPUT_TOKENS,
-                system=SYSTEM_PROMPT,
+                system=system or SYSTEM_PROMPT,
                 tools=TOOLS,
                 messages=messages,
             )
@@ -217,8 +217,11 @@ def _call_api(messages: list[dict]) -> anthropic.types.Message:
     raise RuntimeError("Max retries exceeded")
 
 
-def run_agent(ticker: str, question: str | None = None) -> str:
+def run_agent(ticker: str, question: str | None = None, sector: str | None = None) -> str:
     """Run the research agent and return a completed trade thesis string."""
+    from prompts.sector import get_sector_prompt
+    system = (get_sector_prompt(sector) if sector else None) or SYSTEM_PROMPT
+
     if question is None:
         question = (
             f"Research {ticker.upper()} and produce a complete trade thesis. "
@@ -233,7 +236,7 @@ def run_agent(ticker: str, question: str | None = None) -> str:
         if _estimate_tokens(messages) > CONTEXT_TOKEN_LIMIT:
             messages = _truncate_messages(messages)
 
-        response = _call_api(messages)
+        response = _call_api(messages, system=system)
         messages.append({"role": "assistant", "content": response.content})
 
         if response.stop_reason == "end_turn":
@@ -276,6 +279,7 @@ def main() -> None:
     parser.add_argument("--json", action="store_true", help="Output JSON instead of rendered markdown")
     parser.add_argument("--version", action="version", version=f"trading-agent {__version__}")
     parser.add_argument("--verbose", "-v", action="store_true", help="Log every tool call to stderr")
+    parser.add_argument("--sector", default=None, help="Sector lens: tech, energy, financials, healthcare, consumer")
     args = parser.parse_args()
 
     if args.verbose:
@@ -298,7 +302,7 @@ def main() -> None:
 
     with Progress(SpinnerColumn(), TextColumn(f"Researching {args.ticker.upper()}..."), console=console) as p:
         p.add_task("", total=None)
-        thesis = run_agent(args.ticker, args.question)
+        thesis = run_agent(args.ticker, args.question, sector=args.sector)
 
     if args.json:
         import datetime
