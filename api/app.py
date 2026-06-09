@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 
 from agent import __version__, run_agent
 from config import MODEL
+from api.middleware import RateLimitMiddleware
 from api.models import (
     CompareRequest,
     CompareResponse,
@@ -36,6 +37,7 @@ app = FastAPI(
     version=__version__,
 )
 
+app.add_middleware(RateLimitMiddleware, max_rpm=10)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
