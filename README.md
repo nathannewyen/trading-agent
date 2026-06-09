@@ -103,10 +103,44 @@ python -m pytest evals/test_scorers.py -v
 - `risk_quality` — bear case has concrete, data-backed risks (handles both `## 5. Bear Case` and `**Bear Case**`)
 - `catalyst_recency` — catalysts reference recent time periods
 
+## REST API
+
+Start the API server locally:
+
+```bash
+uvicorn api.app:app --reload --port 8000
+```
+
+Or with Docker:
+
+```bash
+docker compose up
+```
+
+Endpoints:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Liveness check — returns version |
+| `POST` | `/research` | Full research pipeline for one ticker |
+| `POST` | `/compare` | Side-by-side comparison of two tickers |
+| `POST` | `/portfolio` | Research + rank a list of tickers |
+
+Example:
+
+```bash
+curl -X POST http://localhost:8000/research \
+  -H "Content-Type: application/json" \
+  -d '{"ticker": "NVDA", "sector": "tech"}'
+```
+
 ## Architecture
 
 ```
 agent.py              # Tool-use loop: 6 tools, retry, context truncation, input validation
+api/
+  app.py              # FastAPI app: /health, /research, /compare, /portfolio
+  models.py           # Pydantic request/response models
 critic.py             # Two-agent flow: researcher → critic; extracts confidence_score
 portfolio.py          # Multi-ticker research + ranked table; --top-n, --csv, sector breakdown
 compare.py            # Side-by-side comparison with verdict agent; --quick mode
