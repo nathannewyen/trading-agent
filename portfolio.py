@@ -28,6 +28,7 @@ REQUIRED_SECTIONS = [
     "Bull Case",
     "Bear Case",
     "Trade Recommendation",
+    "Risk Profile",
 ]
 NUMBER_PATTERNS = [
     r"\$[\d,.]+",
@@ -123,6 +124,30 @@ def print_summary(results: list[dict]) -> None:
     # Sector breakdown
     if not single:
         _print_sector_breakdown(results)
+        _print_risk_summary(results)
+
+
+def _print_risk_summary(results: list[dict]) -> None:
+    """Print an aggregated risk table (beta, avg vol) for the portfolio."""
+    risk_table = Table(title="Portfolio Risk Summary", show_lines=False, box=None)
+    risk_table.add_column("Ticker", style="cyan bold", width=8)
+    risk_table.add_column("Beta", width=8)
+    risk_table.add_column("Ann. Vol", width=10)
+    risk_table.add_column("Max DD", width=10)
+    risk_table.add_column("Sharpe", width=10)
+
+    for r in results:
+        risk = r.get("risk") or {}
+        risk_table.add_row(
+            r["ticker"],
+            str(risk.get("beta", "—")),
+            f"{risk.get('annualised_volatility_pct', '—')}%",
+            f"{risk.get('max_drawdown_pct', '—')}%",
+            str(risk.get("sharpe_ratio", "—")),
+        )
+
+    console.print()
+    console.print(risk_table)
 
 
 def _print_sector_breakdown(results: list[dict]) -> None:
