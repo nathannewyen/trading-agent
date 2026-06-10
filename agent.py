@@ -25,6 +25,7 @@ from tools.calculator import calculate
 from tools.earnings import get_earnings_data
 from tools.macro import get_macro
 from tools.options import get_options_data
+from tools.risk import get_risk_metrics
 from tools.search import duckduckgo_search
 from tools.technicals import get_technicals
 
@@ -143,6 +144,25 @@ TOOLS = [
             "required": [],
         },
     },
+    {
+        "name": "get_risk",
+        "description": (
+            "Compute risk metrics for a stock: beta vs SPY, annualised volatility, "
+            "Sharpe ratio, max drawdown, and correlation to the S&P 500."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ticker": {"type": "string", "description": "Stock ticker symbol, e.g. 'NVDA'"},
+                "period": {
+                    "type": "string",
+                    "description": "History period: '3mo', '6mo', '1y', '2y'. Default '1y'.",
+                    "default": "1y",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
 ]
 
 
@@ -171,6 +191,11 @@ def _dispatch_tool(name: str, tool_input: dict) -> object:
         )
     if name == "get_macro":
         return get_macro()
+    if name == "get_risk":
+        return get_risk_metrics(
+            ticker=tool_input["ticker"],
+            period=tool_input.get("period", "1y"),
+        )
     return {"error": f"Unknown tool: {name}"}
 
 
