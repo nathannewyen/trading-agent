@@ -20,8 +20,8 @@ def get_risk_metrics(ticker: str, period: str = "1y") -> dict:
         return cached
 
     try:
-        stock = yf.download(ticker, period=period, progress=False, auto_adjust=True)
-        spy = yf.download("SPY", period=period, progress=False, auto_adjust=True)
+        stock = yf.download(ticker, period=period, progress=False, auto_adjust=True, timeout=15)
+        spy = yf.download("SPY", period=period, progress=False, auto_adjust=True, timeout=15)
     except Exception as exc:
         logger.error(f"yfinance download failed for {ticker}: {exc}")
         return {"error": str(exc), "ticker": ticker}
