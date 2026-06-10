@@ -359,6 +359,7 @@ def main() -> None:
     parser.add_argument("--verbose", "-v", action="store_true", help="Log every tool call to stderr")
     parser.add_argument("--sector", default=None, help="Sector lens: tech, energy, financials, healthcare, consumer")
     parser.add_argument("--stream", action="store_true", help="Stream final thesis text to stdout as it is generated")
+    parser.add_argument("--show-risk", action="store_true", help="Print risk metrics table before thesis output")
     args = parser.parse_args()
 
     if args.verbose:
@@ -385,6 +386,17 @@ def main() -> None:
         console.print(f"[bold blue]{'='*60}[/bold blue]\n")
         stream_agent(args.ticker, args.question, sector=args.sector)
         return
+
+    if args.show_risk:
+        from tools.risk import get_risk_metrics
+        from rich.table import Table as RichTable
+        risk = get_risk_metrics(args.ticker)
+        rt = RichTable(title=f"Risk Metrics: {args.ticker}", show_lines=False)
+        for k, v in risk.items():
+            if k not in ("ticker", "period", "data_points"):
+                rt.add_row(k.replace("_", " ").title(), str(v))
+        console.print(rt)
+        console.print()
 
     with Progress(SpinnerColumn(), TextColumn(f"Researching {args.ticker.upper()}..."), console=console) as p:
         p.add_task("", total=None)
