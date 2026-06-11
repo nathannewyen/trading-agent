@@ -110,6 +110,43 @@ def _send_webhook(url: str, payload: dict) -> None:
         logger.warning(f"Webhook delivery failed: {exc}")
 
 
+def send_slack_alert(webhook_url: str, ticker: str, message: str) -> bool:
+    """Send a formatted Slack message via an incoming webhook URL.
+
+    Args:
+        webhook_url: Slack Incoming Webhook URL (from Slack app settings).
+        ticker: Stock ticker for the alert subject.
+        message: Human-readable alert text.
+
+    Returns:
+        True if delivered successfully, False otherwise.
+    """
+    payload = {
+        "text": f":bell: *Trading Alert: {ticker.upper()}*\n{message}",
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f":bell: *Trading Alert: {ticker.upper()}*\n{message}",
+                },
+            }
+        ],
+    }
+    try:
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            webhook_url, data=data,
+            headers={"Content-Type": "application/json"}, method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            logger.info(f"Slack alert delivered: {resp.status}")
+            return True
+    except Exception as exc:
+        logger.warning(f"Slack alert failed: {exc}")
+        return False
+
+
 def list_alert_history() -> list[dict]:
     """Return all recorded alert fire events from disk."""
     if not ALERTS_DIR.exists():
