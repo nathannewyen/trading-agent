@@ -360,6 +360,12 @@ def main() -> None:
     parser.add_argument("--sector", default=None, help="Sector lens: tech, energy, financials, healthcare, consumer")
     parser.add_argument("--stream", action="store_true", help="Stream final thesis text to stdout as it is generated")
     parser.add_argument("--show-risk", action="store_true", help="Print risk metrics table before thesis output")
+    parser.add_argument("--alert-above", type=float, default=None, metavar="PRICE",
+                        help="Fire an alert if the current price is at or above PRICE")
+    parser.add_argument("--alert-below", type=float, default=None, metavar="PRICE",
+                        help="Fire an alert if the current price is at or below PRICE")
+    parser.add_argument("--webhook", default=None, metavar="URL",
+                        help="POST alert payloads to this webhook URL")
     args = parser.parse_args()
 
     if args.verbose:
@@ -379,6 +385,17 @@ def main() -> None:
         from tools import cache as _cache
         cleared = _cache.clear_all()
         logger.info(f"Cache cleared ({cleared} entries)")
+
+    if args.alert_above is not None or args.alert_below is not None:
+        from tools.alerts import check_price_alert
+        if args.alert_above is not None:
+            alert = check_price_alert(args.ticker, args.alert_above, "above", webhook_url=args.webhook)
+            color = "green" if alert.get("triggered") else "dim"
+            console.print(f"[{color}]{alert['message']}[/{color}]")
+        if args.alert_below is not None:
+            alert = check_price_alert(args.ticker, args.alert_below, "below", webhook_url=args.webhook)
+            color = "red" if alert.get("triggered") else "dim"
+            console.print(f"[{color}]{alert['message']}[/{color}]")
 
     if args.stream:
         console.print(f"\n[bold blue]{'='*60}[/bold blue]")
