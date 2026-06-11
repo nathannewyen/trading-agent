@@ -20,6 +20,33 @@ All research logic lives in `tools/`. Add a new data source by:
 
 Use `make research TICKER=NVDA` for quick iteration.
 
+## Alert System
+
+Price threshold alerts are in `tools/alerts.py`:
+
+```python
+from tools.alerts import check_price_alert, send_slack_alert
+
+# Fire when NVDA goes above $1000
+result = check_price_alert("NVDA", 1000.0, "above", webhook_url="https://hooks.slack.com/...")
+
+# Send a formatted Slack notification directly
+send_slack_alert("https://hooks.slack.com/...", "NVDA", "Price target hit: $1,010")
+```
+
+Alert history is persisted to `.alerts/` (JSON files, one per ticker/threshold pair) with a configurable cooldown to avoid repeated notifications.
+
+## API Server
+
+Start the FastAPI server for programmatic access:
+
+```bash
+uvicorn api.app:app --reload --port 8000
+# or: docker compose up
+```
+
+See `api/app.py` for endpoint definitions and `api/models.py` for Pydantic schemas.
+
 ## Testing
 
 ```bash
