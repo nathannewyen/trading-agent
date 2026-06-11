@@ -160,3 +160,20 @@ def list_alert_history() -> list[dict]:
         except json.JSONDecodeError:
             pass
     return records
+
+
+def clear_alert_history(ticker: str | None = None) -> int:
+    """Delete alert history files.
+
+    If *ticker* is given, removes only files for that ticker.
+    Otherwise removes all alert history files.
+    Returns the number of files deleted.
+    """
+    if not ALERTS_DIR.exists():
+        return 0
+    pattern = f"{ticker.upper()}_*.json" if ticker else "*.json"
+    deleted = 0
+    for f in ALERTS_DIR.glob(pattern):
+        f.unlink()
+        deleted += 1
+    return deleted
