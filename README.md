@@ -20,6 +20,8 @@ An agentic research pipeline built on the Anthropic API that fetches earnings da
 | **Sector prompts** | `--sector tech/energy/financials/healthcare/consumer` for specialized analysis |
 | **News aggregation** | Multi-query deduplication across 3 search templates with per-article sentiment |
 | **Fundamentals tool** | Balance-sheet ratios: P/B, P/S, D/E, ROE, FCF yield via `tools/fundamentals.py` |
+| **Risk metrics** | Beta, ann. volatility, Sharpe ratio, max drawdown, SPY correlation via `get_risk` tool |
+| **Price alerts** | `--alert-above` / `--alert-below` with Slack webhook and disk-based cooldown history |
 | **Eval suite** | Braintrust eval with 5 custom scorers across 50 test cases; `--summary` flag for quick stats |
 | **CI** | GitHub Actions runs `pytest tests/` on every push and PR |
 | **Rich CLI** | Colored output, spinner progress, formatted markdown in terminal |
