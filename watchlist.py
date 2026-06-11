@@ -75,6 +75,12 @@ def main() -> None:
         help="Refresh interval in minutes when --watch is active (default 60)",
     )
     parser.add_argument(
+        "--webhook",
+        default=None,
+        metavar="URL",
+        help="POST a JSON summary to this URL after each research run completes",
+    )
+    parser.add_argument(
         "--exclude",
         nargs="+",
         metavar="TICKER",
@@ -159,6 +165,21 @@ def main() -> None:
             )
         Path(args.output).write_text("".join(lines))
         console.print(f"[green]Report saved to {args.output}[/green]")
+
+    if args.webhook and reports:
+        import json as _json
+        import urllib.request as _req
+        summary = [{"ticker": r["ticker"], "days_until": r["days_until"]} for r in reports]
+        payload = _json.dumps({"watchlist_run": summary}).encode("utf-8")
+        try:
+            req = _req.Request(
+                args.webhook, data=payload,
+                headers={"Content-Type": "application/json"}, method="POST"
+            )
+            with _req.urlopen(req, timeout=5) as resp:
+                console.print(f"[dim]Webhook delivered: HTTP {resp.status}[/dim]")
+        except Exception as exc:
+            console.print(f"[yellow]Webhook delivery failed: {exc}[/yellow]")
 
     if args.watch:
         console.print(f"\n[dim]--watch active: refreshing every {args.interval} min. Ctrl-C to stop.[/dim]")
