@@ -360,6 +360,7 @@ def main() -> None:
     parser.add_argument("--sector", default=None, help="Sector lens: tech, energy, financials, healthcare, consumer")
     parser.add_argument("--stream", action="store_true", help="Stream final thesis text to stdout as it is generated")
     parser.add_argument("--show-risk", action="store_true", help="Print risk metrics table before thesis output")
+    parser.add_argument("--backtest", action="store_true", help="Run SMA(50/200) crossover backtest after thesis")
     parser.add_argument("--alert-above", type=float, default=None, metavar="PRICE",
                         help="Fire an alert if the current price is at or above PRICE")
     parser.add_argument("--alert-below", type=float, default=None, metavar="PRICE",
@@ -455,6 +456,14 @@ def main() -> None:
         with open(args.output, "w") as fh:
             fh.write(thesis)
         console.print(f"\n[green]Thesis saved to {args.output}[/green]")
+
+    if args.backtest:
+        from backtest import run_backtest, print_results as _print_bt
+        console.print(f"\n[bold magenta]{'='*60}[/bold magenta]")
+        console.print("[bold magenta]BACKTEST: SMA(50/200) CROSSOVER[/bold magenta]")
+        console.print(f"[bold magenta]{'='*60}[/bold magenta]\n")
+        bt_result = run_backtest(args.ticker)
+        _print_bt(bt_result)
 
 
 if __name__ == "__main__":
