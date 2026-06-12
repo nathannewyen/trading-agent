@@ -109,6 +109,64 @@ def run_backtest(
     }
 
 
+def run_rsi_backtest(
+    ticker: str,
+    oversold: float = 30.0,
+    overbought: float = 70.0,
+    period: str = "5y",
+    initial_capital: float = 10_000.0,
+) -> dict:
+    """RSI mean-reversion backtest: buy when RSI < oversold, sell when RSI > overbought."""
+    data = yf.download(ticker, period=period, progress=False, auto_adjust=True)
+    if data.empty:
+        return {"error": f"No price data for {ticker}"}
+
+    prices = data["Close"].squeeze()
+    if len(prices) < 20:
+        return {"error": "Insufficient history for RSI backtest"}
+
+    delta = prices.diff()
+    gain = delta.clip(lower=0).rolling(14).mean()
+    loss = (-delta.clip(upper=0)).rolling(14).mean()
+    rs = gain / loss.replace(0, float("nan"))
+    rsi = 100 - (100 / (1 + rs))
+
+    cash = initial_capital
+    shares = 0.0
+    trades: list[dict] = []
+
+    for i in range(1, len(prices)):
+        price = float(prices.iloc[i])
+        rsi_val = float(rsi.iloc[i])
+        if math.isnan(rsi_val):
+            continue
+        if rsi_val < oversold and cash > 0:
+            shares = cash / price
+            cash = 0.0
+            trades.append({"date": str(prices.index[i].date()), "action": "BUY", "rsi": round(rsi_val, 1), "price": round(price, 2)})
+        elif rsi_val > overbought and shares > 0:
+            cash = shares * price
+            shares = 0.0
+            trades.append({"date": str(prices.index[i].date()), "action": "SELL", "rsi": round(rsi_val, 1), "price": round(price, 2)})
+
+    final_value = cash + shares * float(prices.iloc[-1])
+    total_return = (final_value - initial_capital) / initial_capital
+    bh_return = (float(prices.iloc[-1]) - float(prices.iloc[0])) / float(prices.iloc[0])
+
+    return {
+        "ticker": ticker.upper(),
+        "strategy": f"RSI({oversold}/{overbought}) mean-reversion",
+        "period": period,
+        "initial_capital": initial_capital,
+        "final_value": round(final_value, 2),
+        "total_return_pct": round(total_return * 100, 2),
+        "buy_and_hold_return_pct": round(bh_return * 100, 2),
+        "alpha_vs_bh_pct": round((total_return - bh_return) * 100, 2),
+        "num_trades": len(trades),
+        "trades": trades,
+    }
+
+
 def print_results(result: dict) -> None:
     if "error" in result:
         console.print(f"[red]Error: {result['error']}[/red]")
