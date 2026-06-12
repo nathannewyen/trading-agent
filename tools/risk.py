@@ -74,3 +74,42 @@ def get_risk_metrics(ticker: str, period: str = "1y") -> dict:
 
     cache.set("risk", result, ticker=ticker, period=period)
     return result
+
+
+def get_var(ticker: str, confidence: float = 0.95, period: str = "1y") -> dict:
+    """Compute historical Value-at-Risk (VaR) and Conditional VaR (CVaR / Expected Shortfall).
+
+    Args:
+        ticker: Stock symbol.
+        confidence: Confidence level, e.g. 0.95 for 95% VaR.
+        period: History period for daily return distribution.
+
+    Returns:
+        dict with var_pct (1-day VaR as % of position) and cvar_pct (expected shortfall).
+    """
+    try:
+        data = yf.download(ticker, period=period, progress=False, auto_adjust=True)
+    except Exception as exc:
+        return {"error": str(exc), "ticker": ticker}
+
+    if data.empty:
+        return {"error": "No price data", "ticker": ticker}
+
+    rets = data["Close"].squeeze().pct_change().dropna().sort_values()
+    cutoff = int((1 - confidence) * len(rets))
+    if cutoff < 1:
+        return {"error": "Not enough data for VaR at this confidence level", "ticker": ticker}
+
+    var = float(rets.iloc[cutoff])
+    cvar = float(rets.iloc[:cutoff].mean())
+
+    return {
+        "ticker": ticker.upper(),
+        "confidence_pct": round(confidence * 100, 1),
+        "var_1d_pct": round(var * 100, 3),
+        "cvar_1d_pct": round(cvar * 100, 3),
+        "interpretation": (
+            f"On 95% of trading days, the single-day loss is no worse than {abs(var*100):.2f}%. "
+            f"On the worst {100-confidence*100:.0f}% of days, the average loss is {abs(cvar*100):.2f}%."
+        ),
+    }
