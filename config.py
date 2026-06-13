@@ -27,3 +27,6 @@ HTTP_TIMEOUT = 15
 
 # Logging / output
 VERBOSE = False                 # override with --verbose CLI flag
+
+# Parallel execution
+PARALLEL_WORKERS = 4            # max concurrent tickers in --parallel portfolio mode
