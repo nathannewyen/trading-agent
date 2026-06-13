@@ -23,6 +23,8 @@ An agentic research pipeline built on the Anthropic API that fetches earnings da
 | **Risk metrics** | Beta, ann. volatility, Sharpe ratio, max drawdown, SPY correlation via `get_risk` tool |
 | **Price alerts** | `--alert-above` / `--alert-below` with Slack webhook and disk-based cooldown history |
 | **Backtesting** | `backtest.py` — SMA crossover and RSI mean-reversion with Sharpe, drawdown, trade log |
+| **Parallel portfolio** | `async_portfolio.py` and `--parallel` flag — concurrent research with ThreadPoolExecutor |
+| **Benchmarking** | `benchmark.py` — measure sequential vs parallel speedup with simulated latency |
 | **Eval suite** | Braintrust eval with 5 custom scorers across 50 test cases; `--summary` flag for quick stats |
 | **CI** | GitHub Actions runs `pytest tests/` on every push and PR |
 | **Rich CLI** | Colored output, spinner progress, formatted markdown in terminal |
