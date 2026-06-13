@@ -14,7 +14,7 @@ def get_earnings_data(ticker: str, quarters: int = 4) -> dict:
         return cached
 
     try:
-        stock = yf.Ticker(ticker)
+        stock = yf.Ticker(ticker, session=None)
         info = stock.info
 
         result: dict = {
