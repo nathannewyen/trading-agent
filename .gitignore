@@ -9,3 +9,7 @@ dist/
 build/
 *.md.bak
 theses/
+.alerts/
+benchmark_*.json
+benchmark_results/
+*.prof
