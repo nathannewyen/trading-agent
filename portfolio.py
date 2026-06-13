@@ -203,10 +203,23 @@ def main() -> None:
         "--delay", type=float, default=0.0, metavar="SEC",
         help="Seconds to wait between tickers to avoid rate limits (default: 0)"
     )
+    parser.add_argument(
+        "--parallel", action="store_true",
+        help="Research tickers concurrently using a thread pool (see async_portfolio.py)"
+    )
+    parser.add_argument(
+        "--workers", type=int, default=4, metavar="N",
+        help="Number of parallel workers when --parallel is active (default 4)"
+    )
     args = parser.parse_args()
 
-    console.print(f"\n[bold]Researching {len(args.tickers)} ticker(s)...[/bold]\n")
-    results = run_portfolio(args.tickers, no_cache=args.no_cache, delay=args.delay)
+    if args.parallel:
+        from async_portfolio import run_parallel_portfolio
+        console.print(f"\n[bold]Researching {len(args.tickers)} ticker(s) in parallel ({args.workers} workers)...[/bold]\n")
+        results = run_parallel_portfolio(args.tickers, workers=args.workers)
+    else:
+        console.print(f"\n[bold]Researching {len(args.tickers)} ticker(s)...[/bold]\n")
+        results = run_portfolio(args.tickers, no_cache=args.no_cache, delay=args.delay)
 
     if args.min_score > 0:
         before = len(results)
