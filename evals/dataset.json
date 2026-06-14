@@ -48,5 +48,14 @@
   {"input": {"ticker": "SPOT", "question": "Research SPOT and produce a complete trade thesis."}, "expected": {"ticker": "SPOT", "sector": "Communication Services"}},
   {"input": {"ticker": "RBLX", "question": "Research RBLX and produce a complete trade thesis."}, "expected": {"ticker": "RBLX", "sector": "Communication Services"}},
   {"input": {"ticker": "DKNG", "question": "Research DKNG and produce a complete trade thesis."}, "expected": {"ticker": "DKNG", "sector": "Consumer Cyclical"}},
-  {"input": {"ticker": "PANW", "question": "Research PANW and produce a complete trade thesis on the cybersecurity space."}, "expected": {"ticker": "PANW", "sector": "Technology"}}
+  {"input": {"ticker": "PANW", "question": "Research PANW and produce a complete trade thesis on the cybersecurity space."}, "expected": {"ticker": "PANW", "sector": "Technology"}},
+  {"input": {"ticker": "CRWD", "question": "Research CRWD and produce a complete trade thesis on endpoint security and AI-native SIEM."}, "expected": {"ticker": "CRWD", "sector": "Technology"}},
+  {"input": {"ticker": "OKTA", "question": "Research OKTA and produce a complete trade thesis covering identity security market dynamics."}, "expected": {"ticker": "OKTA", "sector": "Technology"}},
+  {"input": {"ticker": "ZS", "question": "Research ZS and produce a complete trade thesis on zero-trust network access."}, "expected": {"ticker": "ZS", "sector": "Technology"}},
+  {"input": {"ticker": "NET", "question": "Research NET and produce a complete trade thesis on cloud networking and AI gateway opportunity."}, "expected": {"ticker": "NET", "sector": "Technology"}},
+  {"input": {"ticker": "MDB", "question": "Research MDB and produce a complete trade thesis on document-database growth vs relational alternatives."}, "expected": {"ticker": "MDB", "sector": "Technology"}},
+  {"input": {"ticker": "DDOG", "question": "Research DDOG and produce a complete trade thesis on cloud observability and AI-assisted monitoring."}, "expected": {"ticker": "DDOG", "sector": "Technology"}},
+  {"input": {"ticker": "TEAM", "question": "Research TEAM and produce a complete trade thesis including Jira, Confluence, and AI assistant features."}, "expected": {"ticker": "TEAM", "sector": "Technology"}},
+  {"input": {"ticker": "NOW", "question": "Research NOW (ServiceNow) and produce a complete trade thesis on enterprise workflow AI."}, "expected": {"ticker": "NOW", "sector": "Technology"}},
+  {"input": {"ticker": "WDAY", "question": "Research WDAY and produce a complete trade thesis covering HR and finance cloud migration cycle."}, "expected": {"ticker": "WDAY", "sector": "Technology"}}
 ]
