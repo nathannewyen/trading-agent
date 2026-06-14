@@ -373,14 +373,17 @@ def main() -> None:
         logging.getLogger().setLevel(logging.INFO)
 
     # Input validation
-    ticker_raw = args.ticker.strip()
-    if not ticker_raw:
-        parser.error("Ticker cannot be empty.")
-    if ticker_raw.isdigit():
-        parser.error(f"Invalid ticker '{ticker_raw}': must contain letters, not digits only.")
-    if len(ticker_raw) > 6:
-        parser.error(f"Invalid ticker '{ticker_raw}': tickers are at most 6 characters.")
-    args.ticker = ticker_raw.upper()
+    from tools.validator import validate_ticker, validate_sector, ValidationError
+    try:
+        args.ticker = validate_ticker(args.ticker)
+    except ValidationError as exc:
+        parser.error(str(exc))
+
+    if args.sector:
+        try:
+            args.sector = validate_sector(args.sector)
+        except ValidationError as exc:
+            parser.error(str(exc))
 
     if args.no_cache:
         from tools import cache as _cache
