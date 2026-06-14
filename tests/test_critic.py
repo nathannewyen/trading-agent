@@ -1,13 +1,11 @@
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from critic import run_full_analysis
 
-
-def test_run_full_analysis_returns_expected_keys():
-    """run_full_analysis must return all four keys even on a minimal thesis."""
-    dummy_thesis = """
+DUMMY_THESIS = """
 ### AAPL — Apple Inc.
 **Date:** 2025-06-01
 **Sector:** Technology | **Industry:** Consumer Electronics
@@ -43,7 +41,23 @@ Apple designs and sells consumer electronics. Its ecosystem lock-in drives high 
 ## 7. Key Risks to Monitor
 - US-China trade escalation
 """
-    result = run_full_analysis("AAPL", dummy_thesis)
+
+_MOCK_CRITIQUE = "The thesis is well-structured. However, valuation looks stretched at current multiples."
+
+
+def _make_mock_response(text: str):
+    block = MagicMock()
+    block.text = text
+    msg = MagicMock()
+    msg.content = [block]
+    return msg
+
+
+@patch("critic.client")
+def test_run_full_analysis_returns_expected_keys(mock_client):
+    from critic import run_full_analysis
+    mock_client.messages.create.return_value = _make_mock_response(_MOCK_CRITIQUE)
+    result = run_full_analysis("AAPL", DUMMY_THESIS)
     assert set(result.keys()) == {"ticker", "thesis", "critique", "combined", "confidence_score"}
     assert result["ticker"] == "AAPL"
     assert len(result["thesis"]) > 10
@@ -51,10 +65,12 @@ Apple designs and sells consumer electronics. Its ecosystem lock-in drives high 
     assert result["combined"] == result["thesis"] + "\n\n---\n\n## Analyst Critique\n\n" + result["critique"]
 
 
-def test_confidence_score_is_float_in_range():
-    """confidence_score must be a float in [0.0, 1.0]."""
-    dummy_thesis = "## 5. Bear Case\n- Risk A\n## 6. Trade Recommendation\n- **Bias:** Neutral\n- **Confidence:** Low"
-    result = run_full_analysis("TSLA", dummy_thesis)
+@patch("critic.client")
+def test_confidence_score_is_float_in_range(mock_client):
+    from critic import run_full_analysis
+    dummy = "## 5. Bear Case\n- Risk A\n## 6. Trade Recommendation\n- **Bias:** Neutral\n- **Confidence:** Low"
+    mock_client.messages.create.return_value = _make_mock_response("The thesis is weak and lacks data.")
+    result = run_full_analysis("TSLA", dummy)
     score = result["confidence_score"]
     assert isinstance(score, float)
     assert 0.0 <= score <= 1.0
