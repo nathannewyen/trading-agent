@@ -67,6 +67,27 @@ python watchlist.py NVDA AAPL MSFT --days 14
 # Watchlist from a file
 python watchlist.py --watchlist-file my_tickers.txt --days 30
 
+# Sector-specialized research
+python agent.py NVDA --sector tech
+
+# Risk metrics before thesis
+python agent.py NVDA --show-risk
+
+# Stream thesis in real time
+python agent.py NVDA --stream
+
+# Price alert
+python agent.py NVDA --alert-above 1200 --webhook https://hooks.slack.com/...
+
+# Backtest after thesis
+python agent.py NVDA --backtest
+
+# Parallel portfolio (4 workers)
+python portfolio.py NVDA AAPL MSFT TSLA --parallel --workers 4
+
+# Backtest only
+python backtest.py NVDA --short 20 --long 100 --period 2y
+
 # Makefile shortcuts
 make research TICKER=NVDA
 make test
@@ -75,7 +96,7 @@ make test
 ## Tests
 
 ```bash
-# Run all tests (40+ tests, no network calls needed)
+# Run all tests (100+ tests, no network calls needed)
 make test
 
 # Single module
@@ -83,12 +104,12 @@ python -m pytest tests/test_technicals.py -v
 python -m pytest evals/test_scorers.py -v
 ```
 
-**Test count:** 40+ unit tests across calculator, cache, sentiment, technicals, options, macro, calendar, and watchlist modules.
+**Test count:** 100+ unit tests across calculator, cache, sentiment, technicals, options, macro, calendar, watchlist, fundamentals, risk, news, alerts, backtest, validator, and API modules.
 
 ## Evals
 
 ```bash
-# Full eval (50 cases) — requires BRAINTRUST_API_KEY
+# Full eval (60 cases) — requires BRAINTRUST_API_KEY
 python evals/run_evals.py --tag v1
 
 # Quick smoke test (5 cases)
